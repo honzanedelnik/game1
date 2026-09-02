@@ -1,12 +1,16 @@
 <!DOCTYPE html>
 <html lang="cs">
 <head>
-    <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="theme-color" content="#f0f9ff">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Třídění do 4 rohů</title>
+
+    <!-- PROPOJENÍ S MANIFESTEM A PWA -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#f0f9ff">
+
     <style>
         * {
             box-sizing: border-box;
@@ -28,7 +32,7 @@
 
         /* --- STYLY PRO HERNÍ PRVKY --- */
         #gameArea {
-            display: none; /* Skryté, dokud není na šířku */
+            display: none;
             width: 100%;
             height: 100%;
             position: relative;
@@ -47,7 +51,7 @@
             touch-action: none;
             cursor: grab;
             z-index: 10;
-            transition: transform 0.1s ease; /* Jemný efekt při zvednutí */
+            transition: transform 0.1s ease;
         }
 
         .item:active {
@@ -96,13 +100,11 @@
             padding: 20px;
         }
 
-        /* Detekce orientace - pokud je PORTRAIT (na výšku) */
         @media (orientation: portrait) {
             #rotateMessage { display: flex; }
-            #gameArea { display: none !important; } /* Vynutíme skrytí hry */
+            #gameArea { display: none !important; }
         }
 
-        /* Detekce orientace - pokud je LANDSCAPE (na šířku) */
         @media (orientation: landscape) {
             #gameArea { display: block; }
         }
@@ -122,34 +124,35 @@
             z-index: 100;
         }
         
+        /* Úvodní obrazovka */
         #startScreen {
-    position: fixed;
-    inset: 0;
-    background-color: #f0f9ff;
-    z-index: 500;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    gap: 20px;
-}
+            position: fixed;
+            inset: 0;
+            background-color: #f0f9ff;
+            z-index: 500;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+        }
 
-.play-btn {
-    font-size: 32px;
-    padding: 20px 40px;
-    background-color: #51cf66;
-    color: white;
-    border: none;
-    border-radius: 50px;
-    box-shadow: 0 8px 0 #2b8a3e, 0 15px 20px rgba(0,0,0,0.2);
-    cursor: pointer;
-    font-weight: bold;
-}
+        .play-btn {
+            font-size: 32px;
+            padding: 20px 40px;
+            background-color: #51cf66;
+            color: white;
+            border: none;
+            border-radius: 50px;
+            box-shadow: 0 8px 0 #2b8a3e, 0 15px 20px rgba(0,0,0,0.2);
+            cursor: pointer;
+            font-weight: bold;
+        }
 
-.play-btn:active {
-    transform: translateY(4px);
-    box-shadow: 0 4px 0 #2b8a3e;
-}
+        .play-btn:active {
+            transform: translateY(4px);
+            box-shadow: 0 4px 0 #2b8a3e;
+        }
     </style>
 </head>
 <body>
@@ -161,12 +164,13 @@
         <p style="font-size: 16px; color: #777; margin-top: 10px;">(Ujisti se, že nemáš zamknuté otáčení v telefonu)</p>
     </div>
 
-    <!-- Samotná herní oblast, která se skryje, pokud je telefon na výšku -->
+    <!-- Herní oblast -->
     <div id="gameArea">
         <div id="startScreen">
-    <div style="font-size: 80px;">📦</div>
-    <button class="play-btn" id="startBtn">Hrát</button>
-</div>
+            <div style="font-size: 80px;">📦</div>
+            <button class="play-btn" id="startBtn">Hrát</button>
+        </div>
+
         <div class="box red top-left" data-color="red">📦</div>
         <div class="box blue top-right" data-color="blue">📦</div>
         <div class="box green bottom-left" data-color="green">📦</div>
@@ -181,20 +185,7 @@
 
     <script>
         const startScreen = document.getElementById('startScreen');
-const startBtn = document.getElementById('startBtn');
-
-// Funkce pro bezpečné aktivování Fullscreenu napříč prohlížeči
-function openFullscreen() {
-    const elem = document.documentElement;
-    if (elem.requestFullscreen) {
-        elem.requestFullscreen().catch(err => console.log(err));
-    } else if (elem.webkitRequestFullscreen) { /* Safari / iOS */
-        elem.webkitRequestFullscreen();
-    } else if (elem.msRequestFullscreen) {
-        elem.msRequestFullscreen();
-    }
-}
-        
+        const startBtn = document.getElementById('startBtn');
         const gameArea = document.getElementById('gameArea');
         const winScreen = document.getElementById('winScreen');
         const boxes = document.querySelectorAll('.box');
@@ -209,23 +200,30 @@ function openFullscreen() {
         ];
 
         let currentIndex = 0;
-        let gameStarted = false; // Příznak, zda už hra běží
+        let gameStarted = false;
 
-        // Funkce, která spočítá bezpečnou náhodnou pozici ve viditelném LANDSCAPE středu
+        // Vynucení plného Immersive Fullscreenu v Androidu
+        function openFullscreen() {
+            const elem = document.documentElement;
+            if (elem.requestFullscreen) {
+                elem.requestFullscreen({ navigationUI: "hide" }).catch(err => console.log(err));
+            } else if (elem.webkitRequestFullscreen) {
+                elem.webkitRequestFullscreen();
+            } else if (elem.msRequestFullscreen) {
+                elem.msRequestFullscreen();
+            }
+        }
+
         function calculateSafeRandomPosition() {
-            // Použijeme clientWidth/Height, které odpovídají viditelné ploše
             const width = window.innerWidth;
             const height = window.innerHeight;
 
-            // Definujeme bezpečný obdélník uprostřed (např. vnitřních 50% šířky a 40% výšky)
             const safeWidth = width * 0.5;
             const safeHeight = height * 0.4;
 
-            // Náhodný bod X a Y uvnitř tohoto bezpečného obdélníku
             const randomX = (width - safeWidth) / 2 + Math.random() * safeWidth;
             const randomY = (height - safeHeight) / 2 + Math.random() * safeHeight;
 
-            // Odečteme polovinu velikosti předmětu (45px), abychom centrovali na střed předmětu
             return {
                 x: Math.floor(randomX - 45),
                 y: Math.floor(randomY - 45)
@@ -233,7 +231,6 @@ function openFullscreen() {
         }
 
         function createNextItem() {
-            // Pokud telefon není na šířku, předmět nevytvoříme
             if (window.innerHeight > window.innerWidth) return;
 
             if (currentIndex >= itemsData.length) {
@@ -241,7 +238,6 @@ function openFullscreen() {
                 return;
             }
 
-            // Odstraníme případný starý předmět (pokud zbyl z minula)
             const oldItem = document.querySelector('.item');
             if (oldItem) oldItem.remove();
 
@@ -251,12 +247,10 @@ function openFullscreen() {
             item.innerText = data.emoji;
             item.dataset.color = data.color;
 
-            // Vypočítáme náhodnou pozici
             const pos = calculateSafeRandomPosition();
             item.style.left = `${pos.x}px`;
             item.style.top = `${pos.y}px`;
 
-            // Předmět vkládáme do gameArea, aby se skryl s ním
             gameArea.appendChild(item);
             initDrag(item);
         }
@@ -314,47 +308,31 @@ function openFullscreen() {
             });
         }
 
-        // Opravená logika pro správné spuštění i v offline režimu
-function checkOrientationAndStart() {
-    // Ověříme, zda je displej reálně širší než vyšší
-    const isLandscape = window.innerWidth > window.innerHeight;
+        function checkOrientationAndStart() {
+            const isLandscape = window.innerWidth > window.innerHeight;
 
-    if (isLandscape) {
-        // Pokud hra ještě neběžela, inicializujeme ji
-        if (!gameStarted) {
-            gameStarted = true;
-            // Dáme prohlížeči 150 ms na přepočítání finálních rozměrů v offline režimu
-            setTimeout(() => {
-                createNextItem();
-            }, 150);
-        } else {
-            // Pokud hra běžela, ale předmět chybí (např. po otočení tam a zpět), vytvoříme ho
-            if (!document.querySelector('.item') && currentIndex < itemsData.length) {
-                createNextItem();
+            if (isLandscape && gameStarted) {
+                if (!document.querySelector('.item') && currentIndex < itemsData.length) {
+                    setTimeout(createNextItem, 150);
+                }
             }
         }
-    }
-}
 
-// Při klepnutí na tlačítko Start
-startBtn.addEventListener('pointerdown', (e) => {
-    e.preventDefault(); // Zamezí nechtěným dvojitým klikům na mobilu
-    openFullscreen();
-    startScreen.style.display = 'none';
-    
-    // Zkontrolujeme orientaci a spustíme hru přímo v reakci na stisk
-    checkOrientationAndStart();
-});
+        // Akce stisku tlačítka "Hrát"
+        startBtn.addEventListener('pointerdown', (e) => {
+            e.preventDefault();
+            openFullscreen();
+            startScreen.style.display = 'none';
+            gameStarted = true;
 
-// Posloucháme změny velikosti a otočení displeje
-window.addEventListener('resize', checkOrientationAndStart);
-window.addEventListener('orientationchange', checkOrientationAndStart);
+            setTimeout(() => {
+                createNextItem();
+            }, 200);
+        });
 
-        // Posloucháme změnu velikosti okna (otočení)
+        // Sledování zmeny velkosti/orientace
         window.addEventListener('resize', checkOrientationAndStart);
-
-        // První kontrola při načtení stránky
-        checkOrientationAndStart();
+        window.addEventListener('orientationchange', checkOrientationAndStart);
     </script>
 </body>
 </html>
