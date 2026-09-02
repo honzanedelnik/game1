@@ -202,17 +202,15 @@
         let currentIndex = 0;
         let gameStarted = false;
 
-        // Vynucení plného Immersive Fullscreenu v Androidu
-        function openFullscreen() {
-            const elem = document.documentElement;
-            if (elem.requestFullscreen) {
-                elem.requestFullscreen({ navigationUI: "hide" }).catch(err => console.log(err));
-            } else if (elem.webkitRequestFullscreen) {
-                elem.webkitRequestFullscreen();
-            } else if (elem.msRequestFullscreen) {
-                elem.msRequestFullscreen();
-            }
-        }
+// Aktualizovaná funkce pro aktivaci Fullscreenu
+function forceFullscreen() {
+    const elem = document.documentElement;
+    if (elem.requestFullscreen) {
+        elem.requestFullscreen({ navigationUI: "hide" }).catch(() => {});
+    } else if (elem.webkitRequestFullscreen) {
+        elem.webkitRequestFullscreen();
+    }
+}
 
         function calculateSafeRandomPosition() {
             const width = window.innerWidth;
@@ -308,31 +306,39 @@
             });
         }
 
-        function checkOrientationAndStart() {
-            const isLandscape = window.innerWidth > window.innerHeight;
+        // Opravený hlídač orientace a přepínání obrazovky
+function checkOrientationAndStart() {
+    const isLandscape = window.innerWidth > window.innerHeight;
 
-            if (isLandscape && gameStarted) {
-                if (!document.querySelector('.item') && currentIndex < itemsData.length) {
-                    setTimeout(createNextItem, 150);
-                }
+    if (isLandscape) {
+        // Při otočení na šířku si v APK aplikaci znova vynutíme schování lišt
+        forceFullscreen();
+
+        if (gameStarted) {
+            if (!document.querySelector('.item') && currentIndex < itemsData.length) {
+                setTimeout(createNextItem, 150);
             }
         }
+    }
+}
 
-        // Akce stisku tlačítka "Hrát"
-        startBtn.addEventListener('pointerdown', (e) => {
-            e.preventDefault();
-            openFullscreen();
-            startScreen.style.display = 'none';
-            gameStarted = true;
+// Při klepnutí na tlačítko "Hrát"
+startBtn.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    
+    // Zapneme fullscreen a schováme úvodní obrazovku
+    forceFullscreen();
+    startScreen.style.display = 'none';
+    gameStarted = true;
 
-            setTimeout(() => {
-                createNextItem();
-            }, 200);
-        });
+    setTimeout(() => {
+        createNextItem();
+    }, 200);
+});
 
-        // Sledování zmeny velkosti/orientace
-        window.addEventListener('resize', checkOrientationAndStart);
-        window.addEventListener('orientationchange', checkOrientationAndStart);
+// Sledování změny velikosti a otočení displeje
+window.addEventListener('resize', checkOrientationAndStart);
+window.addEventListener('orientationchange', checkOrientationAndStart);
     </script>
 </body>
 </html>
