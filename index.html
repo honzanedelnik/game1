@@ -194,18 +194,6 @@ function openFullscreen() {
         elem.msRequestFullscreen();
     }
 }
-
-// Při klepnutí na tlačítko spustíme Fullscreen a schováme startovní obrazovku
-startBtn.addEventListener('pointerdown', () => {
-    openFullscreen();
-    startScreen.style.display = 'none';
-    
-    // Vytvoříme první předmět až po stisknutí tlačítka
-    if (!gameStarted) {
-        gameStarted = true;
-        createNextItem();
-    }
-});
         
         const gameArea = document.getElementById('gameArea');
         const winScreen = document.getElementById('winScreen');
@@ -326,25 +314,41 @@ startBtn.addEventListener('pointerdown', () => {
             });
         }
 
-        // HLÍDAČ ORIENTACE: Funkce, která kontroluje, zda můžeme spustit hru
-        function checkOrientationAndStart() {
-            // Je telefon na šířku? (šířka je větší než výška)
-            if (window.innerWidth > window.innerHeight) {
-                // Pokud hra ještě neběžela, spustíme první předmět
-                if (!gameStarted) {
-                    gameStarted = true;
-                    // Krátká pauza, aby se CSS stihlo překreslit
-                    setTimeout(createNextItem, 100); 
-                } else {
-                    // Hra už běžela, ale možná syn otočil tam a zpět.
-                    // Pokud na obrazovce není předmět, vytvoříme ho (opravíme pozici).
-                    if (!document.querySelector('.item') && currentIndex < itemsData.length) {
-                        createNextItem();
-                    }
-                }
+        // Opravená logika pro správné spuštění i v offline režimu
+function checkOrientationAndStart() {
+    // Ověříme, zda je displej reálně širší než vyšší
+    const isLandscape = window.innerWidth > window.innerHeight;
+
+    if (isLandscape) {
+        // Pokud hra ještě neběžela, inicializujeme ji
+        if (!gameStarted) {
+            gameStarted = true;
+            // Dáme prohlížeči 150 ms na přepočítání finálních rozměrů v offline režimu
+            setTimeout(() => {
+                createNextItem();
+            }, 150);
+        } else {
+            // Pokud hra běžela, ale předmět chybí (např. po otočení tam a zpět), vytvoříme ho
+            if (!document.querySelector('.item') && currentIndex < itemsData.length) {
+                createNextItem();
             }
-            // Pokud je na výšku (portrait), CSS (#gameArea { display: none }) se postará o schování.
         }
+    }
+}
+
+// Při klepnutí na tlačítko Start
+startBtn.addEventListener('pointerdown', (e) => {
+    e.preventDefault(); // Zamezí nechtěným dvojitým klikům na mobilu
+    openFullscreen();
+    startScreen.style.display = 'none';
+    
+    // Zkontrolujeme orientaci a spustíme hru přímo v reakci na stisk
+    checkOrientationAndStart();
+});
+
+// Posloucháme změny velikosti a otočení displeje
+window.addEventListener('resize', checkOrientationAndStart);
+window.addEventListener('orientationchange', checkOrientationAndStart);
 
         // Posloucháme změnu velikosti okna (otočení)
         window.addEventListener('resize', checkOrientationAndStart);
