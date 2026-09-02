@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Třídění do 4 rohů</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: sans-serif;
+            background-color: #f0f9ff;
+            height: 100vh;
+            width: 100vw;
+            position: relative;
+            overflow: hidden;
+            touch-action: none; 
+        }
+
+        /* Styl pro předměty */
+        .item {
+            width: 90px;
+            height: 90px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 45px;
+            box-shadow: 0 8px 15px rgba(0,0,0,0.2);
+            position: fixed;
+            touch-action: none;
+            cursor: grab;
+            z-index: 10;
+        }
+
+        .item:active {
+            transform: scale(1.15);
+            cursor: grabbing;
+        }
+
+        /* Základní styl pro krabice v rožích */
+        .box {
+            position: fixed;
+            width: 110px;
+            height: 110px;
+            border-radius: 20px;
+            border: 4px dashed rgba(0,0,0,0.2);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 45px;
+            transition: transform 0.2s ease;
+            z-index: 1;
+        }
+
+        /* Umístění do 4 rohů */
+        .top-left     { top: 15px; left: 15px; }
+        .top-right    { top: 15px; right: 15px; }
+        .bottom-left  { bottom: 15px; left: 15px; }
+        .bottom-right { bottom: 15px; right: 15px; }
+
+        /* Barevné varianty */
+        .red    { background-color: #ff6b6b; border-color: #c92a2a; }
+        .blue   { background-color: #4dabf7; border-color: #1864ab; }
+        .green  { background-color: #51cf66; border-color: #2b8a3e; }
+        .yellow { background-color: #fcc419; border-color: #e67700; }
+
+        /* Vítězná obrazovka */
+        .win-screen {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(255, 255, 255, 0.95);
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            font-size: 30px;
+            text-align: center;
+            gap: 20px;
+            z-index: 100;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="box red top-left" data-color="red">📦</div>
+    <div class="box blue top-right" data-color="blue">📦</div>
+    <div class="box green bottom-left" data-color="green">📦</div>
+    <div class="box yellow bottom-right" data-color="yellow">📦</div>
+
+    <div class="win-screen" id="winScreen">
+        🌟 Skvělá práce! 🌟
+        <div style="font-size: 80px;">😴</div>
+        <p style="font-size: 18px; color: #555;">Hračky jdou spát...</p>
+    </div>
+
+    <script>
+        const boxes = document.querySelectorAll('.box');
+        const winScreen = document.getElementById('winScreen');
+
+        // Seznam předmětů pro 4 barvy
+        const itemsData = [
+            { color: 'red', emoji: '🍎' },
+            { color: 'blue', emoji: '🫐' },
+            { color: 'green', emoji: '🥦' },
+            { color: 'yellow', emoji: '🍌' },
+            { color: 'red', emoji: '🍓' },
+            { color: 'blue', emoji: '🐟' },
+            { color: 'green', emoji: '🐸' },
+            { color: 'yellow', emoji: '🐥' }
+        ];
+
+        let currentIndex = 0;
+
+        function createNextItem() {
+            if (currentIndex >= itemsData.length) {
+                winScreen.style.display = 'flex';
+                return;
+            }
+
+            const data = itemsData[currentIndex];
+            const item = document.createElement('div');
+            item.className = `item ${data.color}`;
+            item.innerText = data.emoji;
+            item.dataset.color = data.color;
+
+            // Výpočet náhodné pozice ve středové zóně
+            // Omezení (30 % až 60 % šířky/výšky), aby předmět nevznikl přímo v rohu
+            const randomX = Math.floor(Math.random() * (window.innerWidth * 0.3)) + (window.innerWidth * 0.35);
+            const randomY = Math.floor(Math.random() * (window.innerHeight * 0.3)) + (window.innerHeight * 0.35);
+
+            item.style.left = `${randomX}px`;
+            item.style.top = `${randomY}px`;
+
+            document.body.appendChild(item);
+            initDrag(item);
+        }
+
+        function initDrag(element) {
+            let isDragging = false;
+            let offsetX, offsetY;
+
+            element.addEventListener('pointerdown', (e) => {
+                isDragging = true;
+                element.setPointerCapture(e.pointerId);
+                
+                const rect = element.getBoundingClientRect();
+                offsetX = e.clientX - rect.left;
+                offsetY = e.clientY - rect.top;
+                
+                element.style.transition = 'none';
+            });
+
+            element.addEventListener('pointermove', (e) => {
+                if (!isDragging) return;
+                
+                const x = e.clientX - offsetX;
+                const y = e.clientY - offsetY;
+                
+                element.style.left = `${x}px`;
+                element.style.top = `${y}px`;
+            });
+
+            element.addEventListener('pointerup', (e) => {
+                if (!isDragging) return;
+                isDragging = false;
+
+                const itemRect = element.getBoundingClientRect();
+                let droppedCorrectly = false;
+
+                boxes.forEach(box => {
+                    const boxRect = box.getBoundingClientRect();
+                    
+                    const isOverlapping = !(
+                        itemRect.right < boxRect.left ||
+                        itemRect.left > boxRect.right ||
+                        itemRect.bottom < boxRect.top ||
+                        itemRect.top > boxRect.bottom
+                    );
+
+                    if (isOverlapping && box.dataset.color === element.dataset.color) {
+                        droppedCorrectly = true;
+                        box.style.transform = 'scale(1.25)';
+                        setTimeout(() => box.style.transform = 'scale(1)', 200);
+                    }
+                });
+
+                if (droppedCorrectly) {
+                    element.remove();
+                    currentIndex++;
+                    createNextItem();
+                }
+            });
+        }
+
+        // Spuštění první položky
+        createNextItem();
+    </script>
+</body>
+</html>
