@@ -177,6 +177,33 @@
     </div>
 
     <script>
+        const startScreen = document.getElementById('startScreen');
+const startBtn = document.getElementById('startBtn');
+
+// Funkce pro bezpečné aktivování Fullscreenu napříč prohlížeči
+function openFullscreen() {
+    const elem = document.documentElement;
+    if (elem.requestFullscreen) {
+        elem.requestFullscreen().catch(err => console.log(err));
+    } else if (elem.webkitRequestFullscreen) { /* Safari / iOS */
+        elem.webkitRequestFullscreen();
+    } else if (elem.msRequestFullscreen) {
+        elem.msRequestFullscreen();
+    }
+}
+
+// Při klepnutí na tlačítko spustíme Fullscreen a schováme startovní obrazovku
+startBtn.addEventListener('pointerdown', () => {
+    openFullscreen();
+    startScreen.style.display = 'none';
+    
+    // Vytvoříme první předmět až po stisknutí tlačítka
+    if (!gameStarted) {
+        gameStarted = true;
+        createNextItem();
+    }
+});
+        
         const gameArea = document.getElementById('gameArea');
         const winScreen = document.getElementById('winScreen');
         const boxes = document.querySelectorAll('.box');
