@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <link rel="manifest" href="./manifest.json">
-    <title>Třídění</title>
+    <title>Třídění do 4 rohů</title>
     <style>
         * {
             box-sizing: border-box;
@@ -24,7 +23,14 @@
             touch-action: none; 
         }
 
-        /* Styl pro předměty */
+        /* --- STYLY PRO HERNÍ PRVKY --- */
+        #gameArea {
+            display: none; /* Skryté, dokud není na šířku */
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+
         .item {
             width: 90px;
             height: 90px;
@@ -38,14 +44,14 @@
             touch-action: none;
             cursor: grab;
             z-index: 10;
+            transition: transform 0.1s ease; /* Jemný efekt při zvednutí */
         }
 
         .item:active {
-            transform: scale(1.15);
+            transform: scale(1.1);
             cursor: grabbing;
         }
 
-        /* Základní styl pro krabice v rožích */
         .box {
             position: fixed;
             width: 110px;
@@ -72,6 +78,32 @@
         .green  { background-color: #51cf66; border-color: #2b8a3e; }
         .yellow { background-color: #fcc419; border-color: #e67700; }
 
+        /* --- VÝZVA K OTOČENÍ --- */
+        #rotateMessage {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background-color: #f0f9ff;
+            z-index: 9999;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            font-size: 24px;
+            padding: 20px;
+        }
+
+        /* Detekce orientace - pokud je PORTRAIT (na výšku) */
+        @media (orientation: portrait) {
+            #rotateMessage { display: flex; }
+            #gameArea { display: none !important; } /* Vynutíme skrytí hry */
+        }
+
+        /* Detekce orientace - pokud je LANDSCAPE (na šířku) */
+        @media (orientation: landscape) {
+            #gameArea { display: block; }
+        }
+
         /* Vítězná obrazovka */
         .win-screen {
             display: none;
@@ -86,69 +118,81 @@
             gap: 20px;
             z-index: 100;
         }
-        
-        #rotateMessage {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background-color: #f0f9ff;
-    z-index: 9999;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    text-align: center;
-    font-size: 24px;
-    padding: 20px;
-}
-
-/* Pokud je obrazovka na výšku (portrait), zobrazíme výzvu */
-@media (orientation: portrait) {
-    #rotateMessage {
-        display: flex;
-    }
-}
     </style>
 </head>
 <body>
 
+    <!-- Výzva k otočení -->
     <div id="rotateMessage">
-    <div style="font-size: 80px; margin-bottom: 20px;">🔄📱</div>
-    <p>Otoč prosím telefon na šířku</p>
+        <div style="font-size: 80px; margin-bottom: 20px;">🔄📱</div>
+        <p>Otoč prosím telefon na šířku</p>
+        <p style="font-size: 16px; color: #777; margin-top: 10px;">(Ujisti se, že nemáš zamknuté otáčení v telefonu)</p>
     </div>
-    <div class="box red top-left" data-color="red">📦</div>
-    <div class="box blue top-right" data-color="blue">📦</div>
-    <div class="box green bottom-left" data-color="green">📦</div>
-    <div class="box yellow bottom-right" data-color="yellow">📦</div>
 
-    <div class="win-screen" id="winScreen">
-        🌟 Skvělá práce! 🌟
-        <div style="font-size: 80px;">😴</div>
-        <p style="font-size: 18px; color: #555;">Hračky jdou spát...</p>
+    <!-- Samotná herní oblast, která se skryje, pokud je telefon na výšku -->
+    <div id="gameArea">
+        <div class="box red top-left" data-color="red">📦</div>
+        <div class="box blue top-right" data-color="blue">📦</div>
+        <div class="box green bottom-left" data-color="green">📦</div>
+        <div class="box yellow bottom-right" data-color="yellow">📦</div>
+
+        <div class="win-screen" id="winScreen">
+            🌟 Skvělá práce! 🌟
+            <div style="font-size: 80px;">😴</div>
+            <p style="font-size: 18px; color: #555;">Hračky jdou spát...</p>
+        </div>
     </div>
 
     <script>
-        const boxes = document.querySelectorAll('.box');
+        const gameArea = document.getElementById('gameArea');
         const winScreen = document.getElementById('winScreen');
+        const boxes = document.querySelectorAll('.box');
 
-        // Seznam předmětů pro 4 barvy
         const itemsData = [
             { color: 'red', emoji: '🍎' },
             { color: 'blue', emoji: '🫐' },
             { color: 'green', emoji: '🥦' },
             { color: 'yellow', emoji: '🍌' },
             { color: 'red', emoji: '🍓' },
-            { color: 'blue', emoji: '🐟' },
-            { color: 'green', emoji: '🐸' },
-            { color: 'yellow', emoji: '🐥' }
+            { color: 'blue', emoji: '🐟' }
         ];
 
         let currentIndex = 0;
+        let gameStarted = false; // Příznak, zda už hra běží
+
+        // Funkce, která spočítá bezpečnou náhodnou pozici ve viditelném LANDSCAPE středu
+        function calculateSafeRandomPosition() {
+            // Použijeme clientWidth/Height, které odpovídají viditelné ploše
+            const width = window.innerWidth;
+            const height = window.innerHeight;
+
+            // Definujeme bezpečný obdélník uprostřed (např. vnitřních 50% šířky a 40% výšky)
+            const safeWidth = width * 0.5;
+            const safeHeight = height * 0.4;
+
+            // Náhodný bod X a Y uvnitř tohoto bezpečného obdélníku
+            const randomX = (width - safeWidth) / 2 + Math.random() * safeWidth;
+            const randomY = (height - safeHeight) / 2 + Math.random() * safeHeight;
+
+            // Odečteme polovinu velikosti předmětu (45px), abychom centrovali na střed předmětu
+            return {
+                x: Math.floor(randomX - 45),
+                y: Math.floor(randomY - 45)
+            };
+        }
 
         function createNextItem() {
+            // Pokud telefon není na šířku, předmět nevytvoříme
+            if (window.innerHeight > window.innerWidth) return;
+
             if (currentIndex >= itemsData.length) {
                 winScreen.style.display = 'flex';
                 return;
             }
+
+            // Odstraníme případný starý předmět (pokud zbyl z minula)
+            const oldItem = document.querySelector('.item');
+            if (oldItem) oldItem.remove();
 
             const data = itemsData[currentIndex];
             const item = document.createElement('div');
@@ -156,15 +200,13 @@
             item.innerText = data.emoji;
             item.dataset.color = data.color;
 
-            // Výpočet náhodné pozice ve středové zóně
-            // Omezení (30 % až 60 % šířky/výšky), aby předmět nevznikl přímo v rohu
-            const randomX = Math.floor(Math.random() * (window.innerWidth * 0.3)) + (window.innerWidth * 0.35);
-            const randomY = Math.floor(Math.random() * (window.innerHeight * 0.3)) + (window.innerHeight * 0.35);
+            // Vypočítáme náhodnou pozici
+            const pos = calculateSafeRandomPosition();
+            item.style.left = `${pos.x}px`;
+            item.style.top = `${pos.y}px`;
 
-            item.style.left = `${randomX}px`;
-            item.style.top = `${randomY}px`;
-
-            document.body.appendChild(item);
+            // Předmět vkládáme do gameArea, aby se skryl s ním
+            gameArea.appendChild(item);
             initDrag(item);
         }
 
@@ -175,20 +217,16 @@
             element.addEventListener('pointerdown', (e) => {
                 isDragging = true;
                 element.setPointerCapture(e.pointerId);
-                
                 const rect = element.getBoundingClientRect();
                 offsetX = e.clientX - rect.left;
                 offsetY = e.clientY - rect.top;
-                
                 element.style.transition = 'none';
             });
 
             element.addEventListener('pointermove', (e) => {
                 if (!isDragging) return;
-                
                 const x = e.clientX - offsetX;
                 const y = e.clientY - offsetY;
-                
                 element.style.left = `${x}px`;
                 element.style.top = `${y}px`;
             });
@@ -225,8 +263,31 @@
             });
         }
 
-        // Spuštění první položky
-        createNextItem();
+        // HLÍDAČ ORIENTACE: Funkce, která kontroluje, zda můžeme spustit hru
+        function checkOrientationAndStart() {
+            // Je telefon na šířku? (šířka je větší než výška)
+            if (window.innerWidth > window.innerHeight) {
+                // Pokud hra ještě neběžela, spustíme první předmět
+                if (!gameStarted) {
+                    gameStarted = true;
+                    // Krátká pauza, aby se CSS stihlo překreslit
+                    setTimeout(createNextItem, 100); 
+                } else {
+                    // Hra už běžela, ale možná syn otočil tam a zpět.
+                    // Pokud na obrazovce není předmět, vytvoříme ho (opravíme pozici).
+                    if (!document.querySelector('.item') && currentIndex < itemsData.length) {
+                        createNextItem();
+                    }
+                }
+            }
+            // Pokud je na výšku (portrait), CSS (#gameArea { display: none }) se postará o schování.
+        }
+
+        // Posloucháme změnu velikosti okna (otočení)
+        window.addEventListener('resize', checkOrientationAndStart);
+
+        // První kontrola při načtení stránky
+        checkOrientationAndStart();
     </script>
 </body>
 </html>
