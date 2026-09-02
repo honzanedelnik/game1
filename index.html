@@ -86,6 +86,27 @@
             gap: 20px;
             z-index: 100;
         }
+        
+        #rotateMessage {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background-color: #f0f9ff;
+    z-index: 9999;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    font-size: 24px;
+    padding: 20px;
+}
+
+/* Pokud je obrazovka na výšku (portrait), zobrazíme výzvu */
+@media (orientation: portrait) {
+    #rotateMessage {
+        display: flex;
+    }
+}
     </style>
 </head>
 <body>
