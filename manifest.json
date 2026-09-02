@@ -1,7 +1,7 @@
 {
   "name": "Třídění pro děti",
   "short_name": "Třídění",
-  "start_url": "./hra.html",
+  "start_url": "./index.html",
   "display": "standalone",
   "orientation": "landscape",
   "background_color": "#f0f9ff",
